@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from keras import layers, Sequential
+from keras import layers, Sequential, Model
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from keras.optimizers import Adam
 from keras.saving.save import load_model
@@ -28,7 +28,8 @@ def if_normal(x):
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-imagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/**/**/*.jpeg', recursive=False)
+imagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/train/**/*.jpeg', recursive=False)
+imagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/val/**/*.jpeg', recursive=False)
 
 patternNormal = '*NORMAL*'
 patternBacteria = '*_bacteria_*'
@@ -52,7 +53,7 @@ else:
         if counter % 100 == 0:
             print('.', end='', flush=True)
         fullSizeImage = cv2.imread(img)
-        im = cv2.resize(fullSizeImage, (224, 224), interpolation=cv2.INTER_CUBIC)
+        im = cv2.resize(fullSizeImage, (128, 128), interpolation=cv2.INTER_CUBIC)
         del fullSizeImage
         im = im.astype(np.float32) / 255.
         x.append(im)
@@ -74,7 +75,7 @@ else:
     np.save('x.npy', x)
     np.save('y.npy', y)
 
-xTrain, xValid, yTrain, yValid = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
+xTrain, xValid, yTrain, yValid = train_test_split(x, y, test_size=0.2, random_state=101, stratify=y)
 yTrain = to_categorical(yTrain, num_classes=2)
 yValid = to_categorical(yValid, num_classes=2)
 del x, y, normal, virus, bacteria, counter
@@ -91,62 +92,83 @@ plt.show()
 
 np.random.seed(111)
 seed(111)
-chanelAxis = -1
+channel_axis = -1
 
 
 def network():
-    model = Sequential([
-        layers.Input(shape=(224, 224, 3)),
+    img_input = layers.Input(shape=(128, 128, 3))
+    x = layers.Conv2D(32, (3, 3),
+                      padding='same', use_bias=False)(img_input)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(32, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.MaxPooling2D((2, 2),
+                            strides=(2, 2),
+                            padding='same')(x)
 
-        layers.Conv2D(32, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.Conv2D(32, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same'),
+    # block 2
+    x = layers.Conv2D(64, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(64, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.MaxPooling2D((2, 2),
+                            strides=(2, 2),
+                            padding='same')(x)
 
-        layers.Conv2D(64, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.Conv2D(64, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same'),
+    # block 3
+    x = layers.Conv2D(128, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(128, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.MaxPooling2D((3, 3),
+                            strides=(3, 3),
+                            padding='same')(x)
 
-        layers.Conv2D(128, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.Conv2D(128, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.MaxPooling2D((3, 3), strides=(3, 3), padding='same'),
+    x = layers.Conv2D(256, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(128, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis, name='block31_bn2')(x)
+    x = layers.Activation('relu')(x)
+    x = layers.MaxPooling2D((3, 3),
+                            strides=(3, 3),
+                            padding='same')(x)
 
-        layers.Conv2D(256, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.Conv2D(256, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.MaxPooling2D((3, 3), strides=(3, 3), padding='same'),
-
-        layers.Conv2D(1024, 3, padding='same', use_bias=False),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.Conv2D(512, 3, padding='same', use_bias=False),
-        layers.Dropout(0.4),
-        layers.BatchNormalization(axis=-1),
-        layers.Activation('relu'),
-        layers.MaxPooling2D((3, 3), strides=(3, 3), padding='same'),
-        layers.Flatten(),
-        layers.Dense(512, activation='relu'),
-        layers.Dense(1024, activation='relu'),
-        layers.Dense(512, activation='relu'),
-        layers.Dense(512, activation='relu'),
-        layers.Dense(256, activation='relu'),
-        layers.Dense(64, activation='relu'),
-        layers.Dense(2, activation='softmax')
-    ])
+    # block 4
+    x = layers.Conv2D(1024, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(512, (3, 3),
+                      padding='same', use_bias=False)(x)
+    x = layers.Dropout(0.5)(x)
+    x = layers.BatchNormalization(axis=channel_axis)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.MaxPooling2D((3, 3),
+                            strides=(3, 3),
+                            padding='same')(x)
+    x = layers.Flatten(name='flatten')(x)
+    x = layers.Dense(512, activation='relu')(x)
+    x = layers.Dense(1024, activation='relu')(x)
+    x = layers.Dense(512, activation='relu')(x)
+    x = layers.Dense(512, activation='relu')(x)
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dense(2, activation='softmax')(x)
+    model = Model(inputs=img_input, outputs=x, name='own_build_model')
     return model
 
 
@@ -158,7 +180,10 @@ LEARN_RATE = 1e-4
 myCnn.compile(optimizer=Adam(learning_rate=LEARN_RATE), loss='categorical_crossentropy',
               metrics=['categorical_accuracy'])
 
-checkpoint = ModelCheckpoint(filepath='model.h5', save_best_only=True, monitor='val_loss', mode='min')
+weight_path = "{}.best_only.hdf5".format('save')
+
+checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1,
+                             save_best_only=True, mode='min', save_weights_only=True)
 
 reduceLROnPlat = ReduceLROnPlateau(monitor='val_loss', factor=0.8, patience=5, verbose=1, mode='auto', min_delta=0.0001,
                                    cooldown=5, min_lr=0.0001)
@@ -167,12 +192,12 @@ earlyStopping = EarlyStopping(monitor='val_loss', patience=50, mode='min')
 
 callbacksList = [checkpoint, earlyStopping, reduceLROnPlat]
 
-# myCnn.load_weights('model.h5')
+# myCnn.load_weights('save.best_only.hdf5')
 
 history = myCnn.fit(xTrain, yTrain, batch_size=16,
-                    epochs=10, verbose=1, validation_split=0.2, callbacks=callbacksList)
+                    epochs=30, verbose=1, validation_split=0.2, callbacks=callbacksList)
 
-testLoss, testScore = myCnn.evaluate(xValid, yValid, batch_size=16)
+testLoss, testScore = myCnn.evaluate(xValid, yValid, batch_size=24)
 print("Loss on test set: ", testLoss)
 print("Accuracy on test set: ", testScore)
 
@@ -217,15 +242,13 @@ plt.show()
 # Save model
 myCnn.save(os.path.join('models', 'pneumoniaModel.h5'))
 
-# myCnn = load_model(os.path.join('models', 'pneumoniaModel.h5'))
-
 normalImagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/test/NORMAL/*.jpeg', recursive=False)
 pneumoniaImagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/test/PNEUMONIA/*.jpeg', recursive=False)
 predictNormal = []
 predictPneumonia = []
 for i, j in zip(normalImagePaths[:230], pneumoniaImagePaths[:230]):
     img = tf.keras.utils.load_img(
-        i, target_size=(224, 224)
+        i, target_size=(128, 128)
     )
 
     img_array = tf.keras.utils.img_to_array(img)
@@ -238,7 +261,7 @@ for i, j in zip(normalImagePaths[:230], pneumoniaImagePaths[:230]):
         predictNormal.append('PNEUMONIA')
 
     img = tf.keras.utils.load_img(
-        j, target_size=(224, 224)
+        j, target_size=(128, 128)
     )
 
     img_array = tf.keras.utils.img_to_array(img)
