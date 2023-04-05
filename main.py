@@ -16,6 +16,9 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.model_selection import train_test_split
+import keras.regularizers
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def if_pneumonia(x):
@@ -29,7 +32,7 @@ def if_normal(x):
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 imagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/train/**/*.jpeg', recursive=False)
-imagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/val/**/*.jpeg', recursive=False)
+imagePaths += glob('C:/Users/user/OneDrive/Pictures/chest_xray/val/**/*.jpeg', recursive=False)
 
 patternNormal = '*NORMAL*'
 patternBacteria = '*_bacteria_*'
@@ -97,79 +100,58 @@ channel_axis = -1
 
 def network():
     img_input = layers.Input(shape=(128, 128, 3))
-    x = layers.Conv2D(32, (3, 3),
-                      padding='same', use_bias=False)(img_input)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.Conv2D(32, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.MaxPooling2D((2, 2),
-                            strides=(2, 2),
-                            padding='same')(x)
 
-    # block 2
-    x = layers.Conv2D(64, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.Conv2D(64, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.MaxPooling2D((2, 2),
-                            strides=(2, 2),
-                            padding='same')(x)
+    model = layers.Conv2D(32, (3, 3), padding='same')(img_input)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.Conv2D(32, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same')(model)
 
-    # block 3
-    x = layers.Conv2D(128, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.Conv2D(128, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.MaxPooling2D((3, 3),
-                            strides=(3, 3),
-                            padding='same')(x)
+    model = layers.Conv2D(64, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.Conv2D(64, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same')(model)
 
-    x = layers.Conv2D(256, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.Conv2D(128, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis, name='block31_bn2')(x)
-    x = layers.Activation('relu')(x)
-    x = layers.MaxPooling2D((3, 3),
-                            strides=(3, 3),
-                            padding='same')(x)
+    model = layers.Conv2D(128, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.Conv2D(128, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same')(model)
 
-    # block 4
-    x = layers.Conv2D(1024, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.Conv2D(512, (3, 3),
-                      padding='same', use_bias=False)(x)
-    x = layers.Dropout(0.5)(x)
-    x = layers.BatchNormalization(axis=channel_axis)(x)
-    x = layers.Activation('relu')(x)
-    x = layers.MaxPooling2D((3, 3),
-                            strides=(3, 3),
-                            padding='same')(x)
-    x = layers.Flatten(name='flatten')(x)
-    x = layers.Dense(512, activation='relu')(x)
-    x = layers.Dense(1024, activation='relu')(x)
-    x = layers.Dense(512, activation='relu')(x)
-    x = layers.Dense(512, activation='relu')(x)
-    x = layers.Dense(256, activation='relu')(x)
-    x = layers.Dense(64, activation='relu')(x)
-    x = layers.Dense(2, activation='softmax')(x)
-    model = Model(inputs=img_input, outputs=x, name='own_build_model')
-    return model
+    model = layers.Conv2D(256, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.Conv2D(128, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.MaxPooling2D((2, 2), strides=(2, 2), padding='same')(model)
+
+    model = layers.Conv2D(1024, (3, 3), padding='same')(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.Conv2D(512, (3, 3), padding='same')(model)
+    model = layers.Dropout(0.5)(model)
+    model = layers.BatchNormalization(axis=channel_axis)(model)
+    model = layers.Activation('relu')(model)
+    model = layers.MaxPooling2D((3, 3), strides=(3, 3), padding='same')(model)
+    model = layers.Flatten()(model)
+    model = layers.Dense(512, activation='relu')(model)
+    model = layers.Dense(1024, activation='relu')(model)
+    model = layers.Dense(512, activation='relu')(model)
+    model = layers.Dense(512, activation='relu')(model)
+    model = layers.Dense(64, activation='relu', kernel_regularizer=keras.regularizers.L1L2(l1=1e-5, l2=1e-4),
+                         bias_regularizer=keras.regularizers.L2(1e-4),
+                         activity_regularizer=keras.regularizers.L2(1e-5))(model)
+    model = layers.Dense(2, activation='softmax')(model)
+    network = Model(inputs=img_input, outputs=model, name='own_build_model')
+    return network
 
 
 myCnn = network()
@@ -195,7 +177,7 @@ callbacksList = [checkpoint, earlyStopping, reduceLROnPlat]
 # myCnn.load_weights('save.best_only.hdf5')
 
 history = myCnn.fit(xTrain, yTrain, batch_size=16,
-                    epochs=30, verbose=1, validation_split=0.2, callbacks=callbacksList)
+                    epochs=10, verbose=1, validation_split=0.2, callbacks=callbacksList)
 
 testLoss, testScore = myCnn.evaluate(xValid, yValid, batch_size=24)
 print("Loss on test set: ", testLoss)
@@ -239,22 +221,61 @@ ax1.set_title('Pneumonia Classification ROC Curve')
 fig.savefig('roc_valid.pdf')
 plt.show()
 
-# Save model
+# Create figure with secondary y-axis
+fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+# Add traces
+fig.add_trace(
+    go.Scatter(y=history.history['val_loss'], name="val_loss"),
+    secondary_y=False,
+)
+
+fig.add_trace(
+    go.Scatter(y=history.history['loss'], name="loss"),
+    secondary_y=False,
+)
+
+fig.add_trace(
+    go.Scatter(y=history.history['val_categorical_accuracy'], name="val categorical accuracy"),
+    secondary_y=True,
+)
+
+fig.add_trace(
+    go.Scatter(y=history.history['categorical_accuracy'], name="categorical accuracy"),
+    secondary_y=True,
+)
+
+# Add figure title
+fig.update_layout(
+    title_text="Loss/Accuracy of Model"
+)
+
+# Set x-axis title
+fig.update_xaxes(title_text="Epoch")
+
+# Set y-axes titles
+fig.update_yaxes(title_text="<b>primary</b> Loss", secondary_y=False)
+fig.update_yaxes(title_text="<b>secondary</b> Accuracy", secondary_y=True)
+
+fig.show()
+
 myCnn.save(os.path.join('models', 'pneumoniaModel.h5'))
+
+myCnn = load_model(os.path.join('models', 'pneumoniaModel.h5'))
 
 normalImagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/test/NORMAL/*.jpeg', recursive=False)
 pneumoniaImagePaths = glob('C:/Users/user/OneDrive/Pictures/chest_xray/test/PNEUMONIA/*.jpeg', recursive=False)
 predictNormal = []
 predictPneumonia = []
-for i, j in zip(normalImagePaths[:230], pneumoniaImagePaths[:230]):
-    img = tf.keras.utils.load_img(
-        i, target_size=(128, 128)
-    )
+for i, j in zip(normalImagePaths[:100], pneumoniaImagePaths[:100]):
+    fullSizeImage = cv2.imread(i)
+    im = cv2.resize(fullSizeImage, (128, 128), interpolation=cv2.INTER_CUBIC)
+    im = im.astype(np.float32) / 255.
+    im = tf.expand_dims(im, 0)
+    print(im.shape)
 
-    img_array = tf.keras.utils.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)  # Create a batch
-
-    predictions = myCnn.predict(img_array)
+    predictions = myCnn.predict(im)
+    print(predictions)
     if np.argmax(predictions) == 0:
         predictNormal.append('NORMAL')
     else:
@@ -268,6 +289,8 @@ for i, j in zip(normalImagePaths[:230], pneumoniaImagePaths[:230]):
     img_array = tf.expand_dims(img_array, 0)  # Create a batch
 
     predictions = myCnn.predict(img_array)
+    print(img_array.shape)
+    print(predictions)
     if np.argmax(predictions) == 1:
         predictPneumonia.append('PNEUMONIA')
     else:
